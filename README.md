@@ -1,4 +1,4 @@
-# GetEthereunErc20Balance
+# GetEthereumErc20Balance
 
 How to run?
 
