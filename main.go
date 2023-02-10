@@ -17,7 +17,7 @@ const decimalsUSDT int = 6
 const contractAddressUSDT string = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 const infuraMainnetURL string = "https://mainnet.infura.io/v3/"
 const infuraTestnetURL string = "https://mainnet.infura.io/v3/"
-const infuraAPIKey string = "REPLACE YOUR API KEY"
+const infuraAPIKey string = "REPLACE YOUR KEY"
 
 func main() {
 	client, err := ethclient.Dial(infuraMainnetURL + infuraAPIKey)
