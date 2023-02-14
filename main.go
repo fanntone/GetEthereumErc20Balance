@@ -84,7 +84,7 @@ func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 			log.Println(err)
 			continue
 		}
-	
+		
 		log.Println("USDT: ", BigIntDiv(bal, decimalsUSDT))
 		time.Sleep(time.Second * time.Duration(5)) // 5 sec
 	}
@@ -100,31 +100,36 @@ func BigIntDiv(balance *big.Int, decimals *big.Int) string {
 }
 
 func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
-	defer wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+            log.Println("defer recovered from panic:", r)
+        }
+		wg.Done()
+	}()
 
 	client, err := ethclient.Dial(config.InfuraWSS + config.InfuraAPIKey)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 
     headers := make(chan *types.Header)
     sub, err := client.SubscribeNewHead(context.Background(), headers)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 
 	for {
 		select {
 		case err := <-sub.Err():
-			log.Fatal(err)
+			panic(err)
 		case header := <-headers:
 			block, err := client.BlockByHash(context.Background(), header.Hash())
 			if err != nil {
-				log.Fatal(err)
+				panic(err)
 			}
 			fmt.Println("***************Begin****************************")
-			fmt.Println(block.Hash().Hex())
-			fmt.Println(block.Number().Uint64())   
+			fmt.Println("block hash: ", block.Hash().Hex())
+			fmt.Println("block number: ", block.Number().Uint64())   
 			for _, trx := range block.Transactions() {
 				trxJSON, err := json.Marshal(trx.To())
 				if err != nil {
