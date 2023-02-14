@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"math/big"
+	"os"
 	"strings"
-
-	// "time"
-	"context"
+	"sync"
+	"time"
 
 	token "example.com/m/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,51 +18,91 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const decimalsUSDT int = 6
-const contractAddressUSDT string = "0xdac17f958d2ee523a2206206994597c13d831ec7"
-const infuraMainnetURL string = "https://mainnet.infura.io/v3/"
-const infuraTestnetURL string = "https://goerli.infura.io/v3/"
-const infuraAPIKey string = "2584141d5b494519a5addb924a8efdc5"
+var   decimalsEther *big.Int = big.NewInt(1000000000000000000)
+var   decimalsUSDT  *big.Int = big.NewInt(1000000)
+
+type Configuration struct {
+	ContractAddressUSDT string `json:"contractAddressUSDT"`
+	InfuraHttpURL 		string `json:"infuraHttpURL"`
+	InfuraWSS			string `json:"infuraWSS"`
+	InfuraAPIKey		string `json:"infuraAPIKey"`
+}
 
 func main() {
-	// client, err := ethclient.Dial(infuraMainnetURL + infuraAPIKey)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }	
-	// for ; ; {
-	// 	go GetOnChianUSDTBalance(client)
-	// 	time.Sleep(time.Second * time.Duration(5)) // 5 sec
-	// }
+	config := ReadConfigJson()
 
-	SubscribingNewBlock()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go GetOnChianUSDTBalance(&wg, config)
+	wg.Add(1)
+	go SubscribingNewBlock(&wg, config)
+	wg.Wait()
 }
 
-func GetOnChianUSDTBalance(client *ethclient.Client) {
-	tokenAddress := common.HexToAddress(contractAddressUSDT)// USDT
-	instance, err := token.NewToken(tokenAddress, client)
+func ReadConfigJson() Configuration{
+	file, _ := os.Open("config.json")
+	defer func() {
+		if r := recover(); r != nil {
+            log.Println("defer recovered from panic:", r)
+        }
+		file.Close()
+	}()
+
+	decoder := json.NewDecoder(file)
+	config := Configuration{}
+	err := decoder.Decode(&config)
 	if err != nil {
-		log.Println(err)
+		log.Println("error:", err)
+		panic(err)
 	}
 
-	address := common.HexToAddress("0x0B1b4C47841ED90A2a5b1b0aaDA369B17765280b")
-    bal, err := instance.BalanceOf(&bind.CallOpts{}, address)
-    if err != nil {
-        log.Println(err)
-    }
-
-	fmt.Println("USDT: ", BigIntDiv(bal, decimalsUSDT))
+	return config
 }
 
-func BigIntDiv(balance *big.Int, decimals int) string {
-    m := new(big.Float).SetInt64(balance.Int64())
-    n := new(big.Float).SetFloat64(math.Pow10(decimalsUSDT))
-    m.Quo(m, n)
+func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
+	defer func() {
+		if r := recover(); r != nil {
+            log.Println("defer recovered from panic:", r)
+        }
+		wg.Done()
+	}()
 
-    return m.String()
+	client, err := ethclient.Dial(config.InfuraHttpURL + config.InfuraAPIKey)
+	if err != nil {
+		panic(err)
+	}	
+	tokenAddress := common.HexToAddress(config.ContractAddressUSDT)// USDT
+	instance, err := token.NewToken(tokenAddress, client)
+	if err != nil {
+		panic(err)
+	}
+
+	address := common.HexToAddress("0x64b6eBE0A55244f09dFb1e46Fe59b74Ab94F8BE1")
+	for {
+		bal, err := instance.BalanceOf(&bind.CallOpts{}, address)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+	
+		log.Println("USDT: ", BigIntDiv(bal, decimalsUSDT))
+		time.Sleep(time.Second * time.Duration(5)) // 5 sec
+	}
 }
 
-func SubscribingNewBlock(){
-	client, err := ethclient.Dial("wss://goerli.infura.io/ws/v3/" + infuraAPIKey)
+func BigIntDiv(balance *big.Int, decimals *big.Int) string {
+    m := new(big.Float).SetUint64(balance.Uint64())
+    n := new(big.Float).SetUint64(decimals.Uint64())
+    z, _ := m.Quo(m, n).Float64()
+	ss := fmt.Sprintf("%6f", z)
+
+    return ss
+}
+
+func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
+	defer wg.Done()
+
+	client, err := ethclient.Dial(config.InfuraWSS + config.InfuraAPIKey)
     if err != nil {
         log.Fatal(err)
     }
@@ -73,34 +113,31 @@ func SubscribingNewBlock(){
         log.Fatal(err)
     }
 
-    for {
-        select {
-        case err := <-sub.Err():
-            log.Fatal(err)
-        case header := <-headers:
-            // fmt.Println(header.Hash().Hex()) 
-
-            block, err := client.BlockByHash(context.Background(), header.Hash())
-            if err != nil {
-                log.Fatal(err)
-            }
+	for {
+		select {
+		case err := <-sub.Err():
+			log.Fatal(err)
+		case header := <-headers:
+			block, err := client.BlockByHash(context.Background(), header.Hash())
+			if err != nil {
+				log.Fatal(err)
+			}
 			fmt.Println("***************Begin****************************")
-            fmt.Println(block.Hash().Hex())
-            fmt.Println(block.Number().Uint64())   
+			fmt.Println(block.Hash().Hex())
+			fmt.Println(block.Number().Uint64())   
 			for _, trx := range block.Transactions() {
 				trxJSON, err := json.Marshal(trx.To())
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
-				// fmt.Println(string(trxJSON))
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
 					fmt.Println("Find deposit!")
-					fmt.Println("send: ", BigIntDiv(trx.Value(),18))
+					fmt.Println("value: ", trx.Value())
+					fmt.Println("send: ", BigIntDiv(trx.Value(), decimalsEther))
 				}
 			}
 			fmt.Println("***************END******************************")
-
-        }
-    }
+		}
+	}
 }
