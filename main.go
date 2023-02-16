@@ -176,7 +176,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					panic(err)
 				}
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
-					fmt.Println("Find deposit!")
+					fmt.Println("Found deposit: Ether")
 					fmt.Println("send value: ", DecimalTranfer(trx.Value(), decimalsEther))
 					sender, err := client.TransactionSender(context.Background(), trx, block.Hash(), 0)
 					if err != nil {
@@ -193,8 +193,8 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			panic(err)
 		case vLog := <-logChan:
             // 輸出轉移的代幣數量
-			fmt.Println("Deposit USDT found")
-			fmt.Println("Name: ", hex.EncodeToString(vLog.Topics[0][:]))
+			fmt.Println("Found deposit: USDT")
+			// fmt.Println("Name: ", hex.EncodeToString(vLog.Topics[0][:]))
 			fmt.Println("from: ", common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])))
 			fmt.Println("to:   ", common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])))
 			fmt.Println("value: ", DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther))
