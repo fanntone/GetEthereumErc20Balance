@@ -12,9 +12,11 @@ import (
 	"time"
 
 	token "example.com/m/contracts"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -32,8 +34,8 @@ func main() {
 	config := ReadConfigJson()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go GetOnChianUSDTBalance(&wg, config)
+	// wg.Add(1)
+	// go GetOnChianUSDTBalance(&wg, config)
 	wg.Add(1)
 	go SubscribingNewBlock(&wg, config)
 	wg.Wait()
@@ -81,8 +83,7 @@ func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 	for {
 		bal, err := instance.BalanceOf(&bind.CallOpts{}, address)
 		if err != nil {
-			log.Println(err)
-			continue
+			panic(err)
 		}
 		
 		log.Println("USDT: ", BigIntDiv(bal, decimalsUSDT))
@@ -93,10 +94,9 @@ func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 func BigIntDiv(balance *big.Int, decimals *big.Int) string {
     m := new(big.Float).SetUint64(balance.Uint64())
     n := new(big.Float).SetUint64(decimals.Uint64())
-    z, _ := m.Quo(m, n).Float64()
-	ss := fmt.Sprintf("%6f", z)
-
-    return ss
+    z := m.Quo(m, n).SetPrec(128)
+	str := z.Text('f', 18)
+    return str
 }
 
 func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
@@ -112,13 +112,40 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
         panic(err)
     }
 
+	// watch etherum
     headers := make(chan *types.Header)
     sub, err := client.SubscribeNewHead(context.Background(), headers)
     if err != nil {
         panic(err)
     }
+	defer sub.Unsubscribe()
+
+	// watch USDT transfer event
+	tokenAddress := common.HexToAddress(config.ContractAddressUSDT)// USDT
+
+	// 設置要監聽的事件
+	query := ethereum.FilterQuery{
+		FromBlock: nil,
+		ToBlock:   nil,
+		Addresses: []common.Address{
+			tokenAddress,
+		},
+		Topics: [][]common.Hash{
+			{
+				crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)")),
+			},
+		},
+	}
+
+	logChan := make(chan types.Log)
+	sub2, err := client.SubscribeFilterLogs(context.Background(), query, logChan)
+	if err != nil {
+        panic(err)
+    }
+	defer sub2.Unsubscribe()
 
 	for {
+		// Ethereum
 		select {
 		case err := <-sub.Err():
 			panic(err)
@@ -133,16 +160,39 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			for _, trx := range block.Transactions() {
 				trxJSON, err := json.Marshal(trx.To())
 				if err != nil {
-					fmt.Println(err)
-					continue
+					panic(err)
 				}
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
 					fmt.Println("Find deposit!")
-					fmt.Println("value: ", trx.Value())
-					fmt.Println("send: ", BigIntDiv(trx.Value(), decimalsEther))
+					fmt.Println("send value: ", BigIntDiv(trx.Value(), decimalsEther))
+					sender, err := client.TransactionSender(context.Background(), trx, block.Hash(), 0)
+					if err != nil {
+						panic(err)
+					}
+					
+					fmt.Println("sender: ", sender.String())
 				}
 			}
 			fmt.Println("***************END******************************")
+
+		// USDT
+		case err := <-sub2.Err():
+			panic(err)
+		case vLog := <-logChan:
+			
+            // 輸出轉移的代幣數量
+			value := dataToBigInt(vLog.Data)
+			if err != nil {
+				panic(err)
+			}
+            fmt.Println("Transfer USDT value: ", value)
+            fmt.Println("Transfer USDT value: ", BigIntDiv(value, decimalsEther))
 		}
 	}
+}
+
+func dataToBigInt(data []byte) *big.Int {
+    b := new(big.Int)
+    b.SetBytes(data)
+    return b
 }
