@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -86,12 +87,12 @@ func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 			panic(err)
 		}
 		
-		log.Println("USDT: ", BigIntDiv(bal, decimalsUSDT))
+		log.Println("USDT: ", DecimalTranfer(bal, decimalsUSDT))
 		time.Sleep(time.Second * time.Duration(5)) // 5 sec
 	}
 }
 
-func BigIntDiv(balance *big.Int, decimals *big.Int) string {
+func DecimalTranfer(balance *big.Int, decimals *big.Int) string {
     m := new(big.Float).SetUint64(balance.Uint64())
     n := new(big.Float).SetUint64(decimals.Uint64())
     z := m.Quo(m, n).SetPrec(128)
@@ -114,11 +115,17 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 
 	// watch etherum
     headers := make(chan *types.Header)
-    sub, err := client.SubscribeNewHead(context.Background(), headers)
+    subHeader, err := client.SubscribeNewHead(context.Background(), headers)
     if err != nil {
         panic(err)
     }
-	defer sub.Unsubscribe()
+
+	defer func() {
+		if r := recover(); r != nil {
+            log.Println("defer recovered from panic:", r)
+        }
+		defer subHeader.Unsubscribe()
+	}()
 
 	// watch USDT transfer event
 	tokenAddress := common.HexToAddress(config.ContractAddressUSDT)// USDT
@@ -138,16 +145,22 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 	}
 
 	logChan := make(chan types.Log)
-	sub2, err := client.SubscribeFilterLogs(context.Background(), query, logChan)
+	subLog, err := client.SubscribeFilterLogs(context.Background(), query, logChan)
 	if err != nil {
         panic(err)
     }
-	defer sub2.Unsubscribe()
+
+	defer func() {
+		if r := recover(); r != nil {
+            log.Println("defer recovered from panic:", r)
+        }
+		defer subHeader.Unsubscribe()
+	}()
 
 	for {
 		// Ethereum
 		select {
-		case err := <-sub.Err():
+		case err := <-subHeader.Err():
 			panic(err)
 		case header := <-headers:
 			block, err := client.BlockByHash(context.Background(), header.Hash())
@@ -164,7 +177,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 				}
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
 					fmt.Println("Find deposit!")
-					fmt.Println("send value: ", BigIntDiv(trx.Value(), decimalsEther))
+					fmt.Println("send value: ", DecimalTranfer(trx.Value(), decimalsEther))
 					sender, err := client.TransactionSender(context.Background(), trx, block.Hash(), 0)
 					if err != nil {
 						panic(err)
@@ -176,17 +189,15 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			fmt.Println("***************END******************************")
 
 		// USDT
-		case err := <-sub2.Err():
+		case err := <-subLog.Err():
 			panic(err)
 		case vLog := <-logChan:
-			
             // 輸出轉移的代幣數量
-			value := dataToBigInt(vLog.Data)
-			if err != nil {
-				panic(err)
-			}
-            fmt.Println("Transfer USDT value: ", value)
-            fmt.Println("Transfer USDT value: ", BigIntDiv(value, decimalsEther))
+			fmt.Println("Deposit USDT found")
+			fmt.Println("Name: ", hex.EncodeToString(vLog.Topics[0][:]))
+			fmt.Println("from: ", common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])))
+			fmt.Println("to:   ", common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])))
+			fmt.Println("value: ", DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther))
 		}
 	}
 }
