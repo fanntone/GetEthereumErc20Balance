@@ -33,6 +33,7 @@ type Configuration struct {
 
 func main() {
 	config := ReadConfigJson()
+	InitSQLConnect()
 
 	var wg sync.WaitGroup
 	// wg.Add(1)
@@ -62,6 +63,7 @@ func ReadConfigJson() Configuration{
 	return config
 }
 
+// listen USDT deposit
 func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -100,6 +102,7 @@ func DecimalTranfer(balance *big.Int, decimals *big.Int) string {
     return str
 }
 
+// Listen ether deposit wtih websocket
 func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 	defer func() {
 		if r := recover(); r != nil {
@@ -108,15 +111,17 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		wg.Done()
 	}()
 
+
 	client, err := ethclient.Dial(config.InfuraWSS + config.InfuraAPIKey)
     if err != nil {
         panic(err)
     }
 
-	// watch etherum
+	// watch etherum chain
     headers := make(chan *types.Header)
     subHeader, err := client.SubscribeNewHead(context.Background(), headers)
     if err != nil {
+		log.Println("subHeader")
         panic(err)
     }
 
@@ -124,7 +129,8 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		if r := recover(); r != nil {
             log.Println("defer recovered from panic:", r)
         }
-		defer subHeader.Unsubscribe()
+		subHeader.Unsubscribe()
+		wg.Done()
 	}()
 
 	// watch USDT transfer event
@@ -147,6 +153,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 	logChan := make(chan types.Log)
 	subLog, err := client.SubscribeFilterLogs(context.Background(), query, logChan)
 	if err != nil {
+		log.Println("sublog error")
         panic(err)
     }
 
@@ -154,18 +161,22 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		if r := recover(); r != nil {
             log.Println("defer recovered from panic:", r)
         }
-		defer subHeader.Unsubscribe()
+		subLog.Unsubscribe()
+		wg.Done()
 	}()
 
 	for {
 		// Ethereum
 		select {
 		case err := <-subHeader.Err():
+			log.Println("case err := <-subHeader.Err():")
 			panic(err)
 		case header := <-headers:
+			log.Println("header.Hash:", header.Hash())
 			block, err := client.BlockByHash(context.Background(), header.Hash())
 			if err != nil {
-				panic(err)
+				log.Println("No ether deposit found")
+				continue
 			}
 			fmt.Println("***************Begin****************************")
 			fmt.Println("block hash: ", block.Hash().Hex())
@@ -173,6 +184,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			for _, trx := range block.Transactions() {
 				trxJSON, err := json.Marshal(trx.To())
 				if err != nil {
+					log.Println("trxJSON")
 					panic(err)
 				}
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
@@ -180,6 +192,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					fmt.Println("send value: ", DecimalTranfer(trx.Value(), decimalsEther))
 					sender, err := client.TransactionSender(context.Background(), trx, block.Hash(), 0)
 					if err != nil {
+						log.Println("sender")
 						panic(err)
 					}
 					
@@ -198,6 +211,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			fmt.Println("from: ", common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])))
 			fmt.Println("to:   ", common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])))
 			fmt.Println("value: ", DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther))
+
 		}
 	}
 }
