@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,7 +130,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		if r := recover(); r != nil {
             log.Println("defer recovered from panic:", r)
         }
-		subHeader.Unsubscribe()
+		defer subHeader.Unsubscribe()
 		wg.Done()
 	}()
 
@@ -161,7 +162,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		if r := recover(); r != nil {
             log.Println("defer recovered from panic:", r)
         }
-		subLog.Unsubscribe()
+		defer subLog.Unsubscribe()
 		wg.Done()
 	}()
 
@@ -173,7 +174,10 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			panic(err)
 		case header := <-headers:
 			log.Println("header.Hash:", header.Hash())
-			block, err := client.BlockByHash(context.Background(), header.Hash())
+			log.Println("header.Number", header.Number)
+			time.Sleep(1 * time.Second)  // 等待 1 秒
+			block, err := client.BlockByNumber(context.Background(), header.Number)
+			log.Println("block:", block)
 			if err != nil {
 				log.Println("No ether deposit found")
 				continue
@@ -187,6 +191,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					log.Println("trxJSON")
 					panic(err)
 				}
+				log.Println("trxJson", string(trxJSON))
 				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
 					fmt.Println("Found deposit: Ether")
 					fmt.Println("send value: ", DecimalTranfer(trx.Value(), decimalsEther))
@@ -211,7 +216,14 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			fmt.Println("from: ", common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])))
 			fmt.Println("to:   ", common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])))
 			fmt.Println("value: ", DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther))
-
+			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther), 64)
+			record := Record {
+				Wallet: common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])).String(),
+				USDT: value,
+				USDC: 0,
+				Balance: 0,
+			}
+			appendRecord(record, value)
 		}
 	}
 }

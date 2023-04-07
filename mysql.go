@@ -141,14 +141,14 @@ func appendRecord(depositRecord Record, betAmount float64) (err error) {
     }()
 
     // 執行更新
-    if err = tx.Create(&depositRecord).Error; err != nil {
+ 	// if err = updatePlayerBalance(&depositRecord, betAmount); err != nil {
+	// 	panic(err)
+	// }
+
+	if err = tx.Create(&depositRecord).Error; err != nil {
         tx.Rollback()
         panic(err)
     }
-
- 	if err = updatePlayerBalance(depositRecord, betAmount); err != nil {
-		panic(err)
-	}
 
     // 提交事務
     if err = tx.Commit().Error; err != nil {
@@ -165,7 +165,7 @@ func handlePanic() {
 	}
 }
 
-func updatePlayerBalance(rds Record, betAmount float64) (err error) {
+func updatePlayerBalance(rds *Record, betAmount float64) (err error) {
 	tx := DB.Begin()
 
     defer func() {
@@ -181,16 +181,11 @@ func updatePlayerBalance(rds Record, betAmount float64) (err error) {
 	// 獲取行鎖(必須)
 	err = tx.WithContext(context.Background()).Clauses(
 		clause.Locking{Strength: "UPDATE"}).
-		Where("name", rds.Name).
+		Where("wallet", rds.Wallet).
 		First(&user).
 		Error
 	if err != nil {
 		panic(err)
-	}
-
-	if user.Balance < betAmount {
-		tx.Rollback()
-		return fmt.Errorf("user.Balance < betAmount")
 	}
 
 	if rds.Balance > 0 {
@@ -208,6 +203,8 @@ func updatePlayerBalance(rds Record, betAmount float64) (err error) {
 	if err := tx.Commit().Error; err != nil {
 		panic(err)
 	}
+
+	rds.Name = user.Name
 
 	return nil
 }
