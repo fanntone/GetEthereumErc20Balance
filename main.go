@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"os"
 	"strconv"
-	"strings"
+	// "strings"
 	"sync"
 	"time"
 
@@ -191,17 +191,20 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					log.Println("trxJSON")
 					panic(err)
 				}
-				log.Println("trxJson", string(trxJSON))
-				if (strings.Contains(string(trxJSON), strings.ToLower("0xe784c0bf50f7a848a3b6cd5672641410f6771daf"))) {
+				// search DB wallet list
+				to, _ := strconv.Unquote(string(trxJSON))
+				if searchUserWalletFromDB(to) {	
+					value, _ := strconv.ParseFloat(DecimalTranfer(trx.Value(), decimalsEther), 64) 
 					fmt.Println("Found deposit: Ether")
-					fmt.Println("send value: ", DecimalTranfer(trx.Value(), decimalsEther))
-					sender, err := client.TransactionSender(context.Background(), trx, block.Hash(), 0)
-					if err != nil {
-						log.Println("sender")
-						panic(err)
+					fmt.Println("send value: ", value)					
+					record := Record {
+						Wallet: to,
+						USDT: 0,
+						USDC: 0,
+						Balance: value,
 					}
-					
-					fmt.Println("sender: ", sender.String())
+					appendRecord(record)
+
 				}
 			}
 			fmt.Println("***************END******************************")
@@ -210,20 +213,26 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 		case err := <-subLog.Err():
 			panic(err)
 		case vLog := <-logChan:
+			from := common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])).String()
+			to   := common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])).String()
+			if !searchUserWalletFromDB(to) {
+				continue
+			}
+
             // 輸出轉移的代幣數量
-			fmt.Println("Found deposit: USDT")
-			// fmt.Println("Name: ", hex.EncodeToString(vLog.Topics[0][:]))
-			fmt.Println("from: ", common.HexToAddress(hex.EncodeToString(vLog.Topics[1][:])))
-			fmt.Println("to:   ", common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])))
-			fmt.Println("value: ", DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther))
 			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther), 64)
+			fmt.Println("Found deposit: USDT")
+			fmt.Println("from: ", from)
+			fmt.Println("to:   ", to)
+			fmt.Println("value: ", value)
+
 			record := Record {
-				Wallet: common.HexToAddress(hex.EncodeToString(vLog.Topics[2][:])).String(),
+				Wallet: to,
 				USDT: value,
 				USDC: 0,
 				Balance: 0,
 			}
-			appendRecord(record, value)
+			appendRecord(record)
 		}
 	}
 }

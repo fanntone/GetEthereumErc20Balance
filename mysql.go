@@ -2,31 +2,23 @@ package main
 
 import (
 	// "encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"math"
+	"strings"
+	"sync"
 
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 	"context"
-	"gorm.io/gorm/clause"
-	"time"
 	"math/big"
 	"os"
 	"strconv"
-)
+	"time"
 
-// type GameResult struct {
-// 	GameId    	uint64  		`gorm:"primaryKey;autoIncrement"`
-// 	Payout    	float64 		`gorm:"column:payout"`
-// 	WinFields 	string  		`gorm:"column:win_fields;type:text"`
-// 	Profit    	float64 		`gorm:"column:profit"`
-// 	Coin      	string  		`gorm:"column:coin"`
-// 	CreatedAt  	time.Time 		`gorm:"column:created_at"`
-// 	UpdatedAt  	time.Time 		`gorm:"column:updated_at"`
-// 	Name 		string 			`gorm:"column:name"`
-// }
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
 
 type Member struct {
 	MemberId 	uint64 		`gorm:"primaryKey;autoIncrement"`
@@ -45,8 +37,7 @@ type Member struct {
 // Deposit Record
 type Record struct {
 	RecordId 	uint64 		`gorm:"primaryKey;autoIncrement"`
-	Name 		string 		`gorm:"conumn:name;uniqueIndex;type:varchar(255)"`
-	Wallet 		string 		`gorm:"column:wallet;uniqueIndex;type:varchar(255)"` 
+	Wallet 		string 		`gorm:"column:wallet;type:varchar(255)"` 
 	Balance 	float64 	`gorm:"column:balance"`
 	USDT 		float64 	`gorm:"column:usdt"`
 	USDC 		float64 	`gorm:"column:usdc"`
@@ -128,7 +119,7 @@ func InitSQLConnect() {
 	}
 }
 
-func appendRecord(depositRecord Record, betAmount float64) (err error) {
+func appendRecord(depositRecord Record) (err error) {
     // 開始事務
     tx := DB.Begin()
 
@@ -140,15 +131,15 @@ func appendRecord(depositRecord Record, betAmount float64) (err error) {
         }
     }()
 
-    // 執行更新
- 	// if err = updatePlayerBalance(&depositRecord, betAmount); err != nil {
-	// 	panic(err)
-	// }
-
 	if err = tx.Create(&depositRecord).Error; err != nil {
         tx.Rollback()
         panic(err)
     }
+
+	// 執行更新
+ 	if err = updatePlayerBalance(&depositRecord); err != nil {
+		panic(err)
+	}
 
     // 提交事務
     if err = tx.Commit().Error; err != nil {
@@ -165,7 +156,7 @@ func handlePanic() {
 	}
 }
 
-func updatePlayerBalance(rds *Record, betAmount float64) (err error) {
+func updatePlayerBalance(rds *Record) (err error) {
 	tx := DB.Begin()
 
     defer func() {
@@ -203,8 +194,6 @@ func updatePlayerBalance(rds *Record, betAmount float64) (err error) {
 	if err := tx.Commit().Error; err != nil {
 		panic(err)
 	}
-
-	rds.Name = user.Name
 
 	return nil
 }
@@ -273,4 +262,12 @@ func getUserWalletFromDB(id uint64) string {
 	}
 
 	return user.Wallet
+}
+
+func searchUserWalletFromDB(wallet string) bool {
+	var user Member
+	
+	result := DB.Debug().First(&user, "LOWER(wallet) = ?", strings.ToLower(wallet))
+
+	return !errors.Is(result.Error, gorm.ErrRecordNotFound)
 }
