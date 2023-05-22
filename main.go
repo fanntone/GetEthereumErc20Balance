@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+
 	// "strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/shopspring/decimal"
 )
 
 var   decimalsEther *big.Int = big.NewInt(1000000000000000000)
@@ -199,9 +201,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					fmt.Println("send value: ", value)					
 					record := Record {
 						Wallet: to,
-						USDT: 0,
-						USDC: 0,
-						Balance: value,
+						USDT: decimal.NewFromInt(0),
+						USDC: decimal.NewFromInt(0),
+						Balance: decimal.NewFromFloat(value),
 					}
 					appendRecord(record)
 
@@ -228,9 +230,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 
 			record := Record {
 				Wallet: to,
-				USDT: value,
-				USDC: 0,
-				Balance: 0,
+				USDT: decimal.NewFromFloat(value),
+				USDC: decimal.NewFromInt(0),
+				Balance: decimal.NewFromInt(0),
 			}
 			appendRecord(record)
 		}

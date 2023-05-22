@@ -15,32 +15,33 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type Member struct {
-	MemberId 	uint64 		`gorm:"primaryKey;autoIncrement"`
-	Email 		string 		`gorm:"column:email;uniqueIndex;type:varchar(255)"`
-	Wallet 		string 		`gorm:"column:wallet;uniqueIndex;type:varchar(255)"` 
-	PrivateKey  string 		`gorm:"column:private_key;uniqueIndex;type:varchar(255)"`
-	Balance 	float64 	`gorm:"column:balance"`
-	USDT 		float64 	`gorm:"column:usdt"`
-	USDC 		float64 	`gorm:"column:usdc"`
-	Name 		string 		`gorm:"conumn:name;uniqueIndex;type:varchar(255)"`
-	Password 	string 		`gorm:"cloumn:password"`
-	CreatedAt   time.Time 	`gorm:"column:created_at"`
-	UpdatedAt   time.Time 	`gorm:"column:updated_at"`
+	MemberId 	uint64 				`gorm:"primaryKey;autoIncrement"`
+	Email 		string 				`gorm:"column:email BINARY;uniqueIndex;type:varchar(255)"`
+	Wallet 		string 				`gorm:"column:wallet BINARY;uniqueIndex;type:varchar(255)"` 
+	PrivateKey  string 				`gorm:"column:private_key BINARY;uniqueIndex;type:varchar(255)"`
+	Balance 	decimal.Decimal 	`gorm:"column:balance;type:decimal(20,6)"`
+	USDT 		decimal.Decimal  	`gorm:"column:usdt;type:decimal(10,6)"`
+	USDC 		decimal.Decimal  	`gorm:"column:usdc;type:decimal(10,6)"`
+	Name 		string 				`gorm:"conumn:name BINARY;uniqueIndex;type:varchar(255)"`
+	Password 	string 				`gorm:"cloumn:password BINARY"`
+	CreatedAt   time.Time 			`gorm:"column:created_at"`
+	UpdatedAt   time.Time 			`gorm:"column:updated_at"`
 }
 
 // Deposit Record
 type Record struct {
-	RecordId 	uint64 		`gorm:"primaryKey;autoIncrement"`
-	Wallet 		string 		`gorm:"column:wallet;type:varchar(255)"` 
-	Balance 	float64 	`gorm:"column:balance"`
-	USDT 		float64 	`gorm:"column:usdt"`
-	USDC 		float64 	`gorm:"column:usdc"`
+	RecordId 	uint64 				`gorm:"primaryKey;autoIncrement"`
+	Wallet 		string 				`gorm:"column:wallet;type:varchar(255)"` 
+	Balance 	decimal.Decimal 	`gorm:"column:balance"`
+	USDT 		decimal.Decimal 	`gorm:"column:usdt"`
+	USDC 		decimal.Decimal 	`gorm:"column:usdc"`
 }
 
 const (
@@ -179,14 +180,15 @@ func updatePlayerBalance(rds *Record) (err error) {
 		panic(err)
 	}
 
-	if rds.Balance > 0 {
-		balance := bigFloatAdd(user.Balance, rds.Balance)
+	dp := decimal.NewFromFloat(0)
+	if rds.Balance.Cmp(dp) == 1 {
+		balance := user.Balance.Add(rds.Balance)
 		tx.Model(&user).Update("balance", balance)
-	} else if rds.USDC > 0 {
-		usdc := bigFloatAdd(user.Balance, rds.USDC)
+	} else if rds.USDC.Cmp(dp) == 1 {
+		usdc := user.Balance.Add(rds.USDC)
 		tx.Model(&user).Update("usdc", usdc)
-	} else if rds.USDT > 0 {
-		usdt := bigFloatAdd(user.Balance, rds.USDT)
+	} else if rds.USDT.Cmp(dp) == 1 {
+		usdt := user.Balance.Add(rds.USDT)
 		tx.Model(&user).Update("usdt", usdt)
 	}
 	
@@ -221,8 +223,9 @@ func getPlayerBalanceFromDB(id uint64) float64{
 	if err != nil {
 		return 0
 	}
+	f, _ := user.Balance.Float64()
 
-	return user.Balance
+	return f
 }
 
 func getAllDepositHistoryFromDB() []Record {
