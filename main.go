@@ -9,8 +9,6 @@ import (
 	"math/big"
 	"os"
 	"strconv"
-
-	// "strings"
 	"sync"
 	"time"
 
@@ -24,14 +22,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var   decimalsEther *big.Int = big.NewInt(1000000000000000000)
-var   decimalsUSDT  *big.Int = big.NewInt(1000000)
+// var   decimalsEther *big.Int = big.NewInt(1000000000000000000)
+// var   decimalsUSDT  *big.Int = big.NewInt(1000000)
 
 type Configuration struct {
 	ContractAddressUSDT string `json:"contractAddressUSDT"`
+	ContractAddressUSDC string `json:"contractAddressUSDC"`
 	InfuraHttpURL 		string `json:"infuraHttpURL"`
 	InfuraWSS			string `json:"infuraWSS"`
 	InfuraAPIKey		string `json:"infuraAPIKey"`
+	DecimalErc20		int64  `json:"decimalErc20"`
 }
 
 func main() {
@@ -39,8 +39,6 @@ func main() {
 	InitSQLConnect()
 
 	var wg sync.WaitGroup
-	// wg.Add(1)
-	// go GetOnChianUSDTBalance(&wg, config)
 	wg.Add(1)
 	go SubscribingNewBlock(&wg, config)
 	wg.Wait()
@@ -92,7 +90,7 @@ func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
 			panic(err)
 		}
 		
-		log.Println("USDT: ", DecimalTranfer(bal, decimalsUSDT))
+		log.Println("USDT: ", DecimalTranfer(bal, big.NewInt(config.DecimalErc20)))
 		time.Sleep(time.Second * time.Duration(5)) // 5 sec
 	}
 }
@@ -137,14 +135,15 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 	}()
 
 	// watch USDT transfer event
-	tokenAddress := common.HexToAddress(config.ContractAddressUSDT)// USDT
-
+	tokenAddressUSDT := common.HexToAddress(config.ContractAddressUSDT)// USDT
+	tokenAddressUSDC := common.HexToAddress(config.ContractAddressUSDC)// USDC
+	
 	// 設置要監聽的事件
-	query := ethereum.FilterQuery{
+	queryUSDT := ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
 		Addresses: []common.Address{
-			tokenAddress,
+			tokenAddressUSDT,
 		},
 		Topics: [][]common.Hash{
 			{
@@ -152,11 +151,29 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			},
 		},
 	}
-
 	logChan := make(chan types.Log)
-	subLog, err := client.SubscribeFilterLogs(context.Background(), query, logChan)
+	subLog, err := client.SubscribeFilterLogs(context.Background(), queryUSDT, logChan)
 	if err != nil {
 		log.Println("sublog error")
+        panic(err)
+    }
+
+	queryUSDC := ethereum.FilterQuery{
+		FromBlock: nil,
+		ToBlock:   nil,
+		Addresses: []common.Address{
+			tokenAddressUSDC,
+		},
+		Topics: [][]common.Hash{
+			{
+				crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)")),
+			},
+		},
+	}
+	logChanUSDC := make(chan types.Log)
+	subLogUSDC, err := client.SubscribeFilterLogs(context.Background(), queryUSDC, logChanUSDC)
+	if err != nil {
+		log.Println("sublogUSDC error")
         panic(err)
     }
 
@@ -196,7 +213,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 				// search DB wallet list
 				to, _ := strconv.Unquote(string(trxJSON))
 				if searchUserWalletFromDB(to) {	
-					value, _ := strconv.ParseFloat(DecimalTranfer(trx.Value(), decimalsEther), 64) 
+					value, _ := strconv.ParseFloat(DecimalTranfer(trx.Value(), big.NewInt(config.DecimalErc20)), 64) 
 					fmt.Println("Found deposit: Ether")
 					fmt.Println("send value: ", value)					
 					record := Record {
@@ -222,7 +239,31 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			}
 
             // 輸出轉移的代幣數量
-			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(vLog.Data), decimalsEther), 64)
+			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(vLog.Data), big.NewInt(config.DecimalErc20)), 64)
+			fmt.Println("Found deposit: USDT")
+			fmt.Println("from: ", from)
+			fmt.Println("to:   ", to)
+			fmt.Println("value: ", value)
+
+			record := Record {
+				Wallet: to,
+				USDT: decimal.NewFromFloat(value),
+				USDC: decimal.NewFromInt(0),
+				Balance: decimal.NewFromInt(0),
+			}
+			appendRecord(record)
+		// USDC
+		case err = <-subLogUSDC.Err():
+			panic(err)
+		case usdcLog := <-logChanUSDC:
+			from := common.HexToAddress(hex.EncodeToString(usdcLog.Topics[1][:])).String()
+			to   := common.HexToAddress(hex.EncodeToString(usdcLog.Topics[2][:])).String()
+			if !searchUserWalletFromDB(to) {
+				continue
+			}
+
+            // 輸出轉移的代幣數量
+			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(usdcLog.Data), big.NewInt(config.DecimalErc20)), 64)
 			fmt.Println("Found deposit: USDT")
 			fmt.Println("from: ", from)
 			fmt.Println("to:   ", to)
