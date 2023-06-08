@@ -38,10 +38,13 @@ type Member struct {
 // Deposit Record
 type Record struct {
 	RecordId 	uint64 				`gorm:"primaryKey;autoIncrement"`
+	Type 		string 				`gorm:"type;default:Deposit"`
 	Wallet 		string 				`gorm:"column:wallet;type:varchar(255)"` 
 	Balance 	decimal.Decimal 	`gorm:"column:balance"`
 	USDT 		decimal.Decimal 	`gorm:"column:usdt"`
 	USDC 		decimal.Decimal 	`gorm:"column:usdc"`
+	CreatedAt   time.Time 			`gorm:"column:created_at"`
+	UpdatedAt   time.Time 			`gorm:"column:updated_at"`
 }
 
 const (
