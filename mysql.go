@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"strings"
 	"sync"
 
 	"context"
-	"math/big"
 	"os"
 	"strconv"
 	"time"
@@ -191,10 +189,10 @@ func updatePlayerBalance(rds *Record) (err error) {
 		balance := user.Balance.Add(rds.Balance)
 		tx.Model(&user).Update("balance", balance)
 	} else if rds.USDC.Cmp(dp) == 1 {
-		usdc := user.Balance.Add(rds.USDC)
+		usdc := user.USDC.Add(rds.USDC)
 		tx.Model(&user).Update("usdc", usdc)
 	} else if rds.USDT.Cmp(dp) == 1 {
-		usdt := user.Balance.Add(rds.USDT)
+		usdt := user.USDT.Add(rds.USDT)
 		tx.Model(&user).Update("usdt", usdt)
 	}
 	
@@ -206,52 +204,52 @@ func updatePlayerBalance(rds *Record) (err error) {
 	return nil
 }
 
-func floatRound(x float64, prec int) float64 {
-	pow := math.Pow(10, float64(prec))
-	return math.Round(x*pow) / pow
-}
+// func floatRound(x float64, prec int) float64 {
+// 	pow := math.Pow(10, float64(prec))
+// 	return math.Round(x*pow) / pow
+// }
 
-// float64相加
-func bigFloatAdd(a float64, b float64) float64{
-	x := big.NewFloat(a)
-	y := big.NewFloat(b)
-	z := new(big.Float).Add(x,y)
-	balance, _ := z.Float64()
-	balance = floatRound(balance, 8)
+// // float64相加
+// func bigFloatAdd(a float64, b float64) float64{
+// 	x := big.NewFloat(a)
+// 	y := big.NewFloat(b)
+// 	z := new(big.Float).Add(x,y)
+// 	balance, _ := z.Float64()
+// 	balance = floatRound(balance, 8)
 
-	return balance
-}
+// 	return balance
+// }
 
 // For API
-func getPlayerBalanceFromDB(id uint64) float64{
-	var user Member
-	err := DB.First(&user, id).Error
-	if err != nil {
-		return 0
-	}
-	f, _ := user.Balance.Float64()
+// func getPlayerBalanceFromDB(id uint64) float64{
+// 	var user Member
+// 	err := DB.First(&user, id).Error
+// 	if err != nil {
+// 		return 0
+// 	}
+// 	f, _ := user.Balance.Float64()
 
-	return f
-}
+// 	return f
+// }
 
-func getAllDepositHistoryFromDB() []Record {
-	var rds []Record
-	var limit int = 30
+// func getAllDepositHistoryFromDB() []Record {
+// 	var rds []Record
+// 	var limit int = 30
 	
-	err := DB.Order("record_id desc").Limit(limit).Find(&rds).Error
-	if err != nil {
-		return nil
-	}
+// 	err := DB.Order("record_id desc").Limit(limit).Find(&rds).Error
+// 	if err != nil {
+// 		return nil
+// 	}
 
-	return rds
-}
+// 	return rds
+// }
 
-func getUserDepositHistoryFromDB(name string) []Record {
-	var rds []Record
-	DB.Where("name", name).Order("record_id desc").First(&rds)
+// func getUserDepositHistoryFromDB(name string) []Record {
+// 	var rds []Record
+// 	DB.Where("name", name).Order("record_id desc").First(&rds)
 
-	return rds
-}
+// 	return rds
+// }
 
 // // login used
 // func getUserDataFromDB(name string) (Member, bool) {
