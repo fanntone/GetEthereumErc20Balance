@@ -221,6 +221,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 						USDT: decimal.NewFromInt(0),
 						USDC: decimal.NewFromInt(0),
 						Balance: decimal.NewFromFloat(value),
+						Amount: decimal.NewFromFloat(value),
+						Token: "ETH",
+						TransactionID: trx.Hash().String(),
 					}
 					appendRecord(record)
 
@@ -250,6 +253,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 				USDT: decimal.NewFromFloat(value),
 				USDC: decimal.NewFromInt(0),
 				Balance: decimal.NewFromInt(0),
+				Amount: decimal.NewFromFloat(value),
+				Token: "USDT",
+				TransactionID: vLog.TxHash.String(),
 			}
 			appendRecord(record)
 		// USDC
@@ -264,16 +270,19 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 
             // 輸出轉移的代幣數量
 			value, _ := strconv.ParseFloat(DecimalTranfer(dataToBigInt(usdcLog.Data), big.NewInt(config.DecimalErc20)), 64)
-			fmt.Println("Found deposit: USDT")
+			fmt.Println("Found deposit: USDC")
 			fmt.Println("from: ", from)
 			fmt.Println("to:   ", to)
 			fmt.Println("value: ", value)
 
 			record := Record {
 				Wallet: to,
-				USDT: decimal.NewFromFloat(value),
-				USDC: decimal.NewFromInt(0),
+				USDT: decimal.NewFromFloat(0),
+				USDC: decimal.NewFromFloat(value),
 				Balance: decimal.NewFromInt(0),
+				Amount: decimal.NewFromFloat(value),
+				Token: "USDC",
+				TransactionID: usdcLog.TxHash.String(),
 			}
 			appendRecord(record)
 		}

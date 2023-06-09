@@ -37,14 +37,17 @@ type Member struct {
 
 // Deposit Record
 type Record struct {
-	RecordId 	uint64 				`gorm:"primaryKey;autoIncrement"`
-	Type 		string 				`gorm:"type;default:Deposit"`
-	Wallet 		string 				`gorm:"column:wallet;type:varchar(255)"` 
-	Balance 	decimal.Decimal 	`gorm:"column:balance"`
-	USDT 		decimal.Decimal 	`gorm:"column:usdt"`
-	USDC 		decimal.Decimal 	`gorm:"column:usdc"`
-	CreatedAt   time.Time 			`gorm:"column:created_at"`
-	UpdatedAt   time.Time 			`gorm:"column:updated_at"`
+	RecordId 		uint64 				`gorm:"primaryKey;autoIncrement"`
+	Action 			string 				`gorm:"column:action;type:varchar(255);default:'Deposit'"`
+	Wallet 			string 				`gorm:"column:wallet;type:varchar(255)"` 
+	Balance 		decimal.Decimal 	`gorm:"column:balance"`
+	USDT 			decimal.Decimal 	`gorm:"column:usdt"`
+	USDC 			decimal.Decimal 	`gorm:"column:usdc"`
+	Token 			string 				`gorm:"column:token"`
+	Amount 			decimal.Decimal		`gorm:"column:amount"`
+	TransactionID 	string 				`gorm:"column:transaction_id"`
+	CreatedAt   	time.Time 			`gorm:"column:created_at"`
+	UpdatedAt   	time.Time 			`gorm:"column:updated_at"`
 }
 
 const (
@@ -250,25 +253,25 @@ func getUserDepositHistoryFromDB(name string) []Record {
 	return rds
 }
 
-// login used
-func getUserDataFromDB(name string) (Member, bool) {
-	var user Member
-	if err := DB.Where("name", name).First(&user).Error; err != nil {
-		return user, false
-	}
+// // login used
+// func getUserDataFromDB(name string) (Member, bool) {
+// 	var user Member
+// 	if err := DB.Where("name", name).First(&user).Error; err != nil {
+// 		return user, false
+// 	}
 	
-	return user, true
-}
+// 	return user, true
+// }
 
-func getUserWalletFromDB(id uint64) string {
-	var user Member
-	err := DB.First(&user, id).Error
-	if err != nil {
-		return ""
-	}
+// func getUserWalletFromDB(id uint64) string {
+// 	var user Member
+// 	err := DB.First(&user, id).Error
+// 	if err != nil {
+// 		return ""
+// 	}
 
-	return user.Wallet
-}
+// 	return user.Wallet
+// }
 
 func searchUserWalletFromDB(wallet string) bool {
 	var user Member
