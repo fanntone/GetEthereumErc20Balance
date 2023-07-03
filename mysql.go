@@ -75,6 +75,11 @@ func  (Record) TableName() string {
 	return "records"
 }
 
+func init() {
+	config = ReadConfigJson()
+	InitSQLConnect()
+}
+
 func InitSQLConnect() {
 	defer handlePanic()
 	sql_host := Addr
@@ -204,77 +209,26 @@ func updatePlayerBalance(rds *Record) (err error) {
 	return nil
 }
 
-// func floatRound(x float64, prec int) float64 {
-// 	pow := math.Pow(10, float64(prec))
-// 	return math.Round(x*pow) / pow
-// }
-
-// // float64相加
-// func bigFloatAdd(a float64, b float64) float64{
-// 	x := big.NewFloat(a)
-// 	y := big.NewFloat(b)
-// 	z := new(big.Float).Add(x,y)
-// 	balance, _ := z.Float64()
-// 	balance = floatRound(balance, 8)
-
-// 	return balance
-// }
-
-// For API
-// func getPlayerBalanceFromDB(id uint64) float64{
-// 	var user Member
-// 	err := DB.First(&user, id).Error
-// 	if err != nil {
-// 		return 0
-// 	}
-// 	f, _ := user.Balance.Float64()
-
-// 	return f
-// }
-
-// func getAllDepositHistoryFromDB() []Record {
-// 	var rds []Record
-// 	var limit int = 30
-	
-// 	err := DB.Order("record_id desc").Limit(limit).Find(&rds).Error
-// 	if err != nil {
-// 		return nil
-// 	}
-
-// 	return rds
-// }
-
-// func getUserDepositHistoryFromDB(name string) []Record {
-// 	var rds []Record
-// 	DB.Where("name", name).Order("record_id desc").First(&rds)
-
-// 	return rds
-// }
-
-// // login used
-// func getUserDataFromDB(name string) (Member, bool) {
-// 	var user Member
-// 	if err := DB.Where("name", name).First(&user).Error; err != nil {
-// 		return user, false
-// 	}
-	
-// 	return user, true
-// }
-
-// func getUserWalletFromDB(id uint64) string {
-// 	var user Member
-// 	err := DB.First(&user, id).Error
-// 	if err != nil {
-// 		return ""
-// 	}
-
-// 	return user.Wallet
-// }
-
 func searchUserWalletFromDB(wallet string) bool {
 	var user Member
 	
 	result := DB.Debug().First(&user, "LOWER(wallet) = ?", strings.ToLower(wallet))
 
 	return !errors.Is(result.Error, gorm.ErrRecordNotFound)
+}
+
+func searchAllUserWalletFromDB() ([]string, error) {
+	var wallets []string
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+	err := DB.Debug().Model(&Record{}).
+	Select("DISTINCT wallet").
+	Where("created_at >= ? AND created_at <= ? AND action = ?",startOfDay, endOfDay, "Deposit").
+	Pluck("wallet", &wallets).Error
+	if err != nil {
+		return wallets, err
+	}
+
+	return wallets, nil
 }

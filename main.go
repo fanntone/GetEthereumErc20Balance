@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	token "example.com/m/contracts"
+	// token "example.com/m/contracts"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	// "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,9 +34,10 @@ type Configuration struct {
 	DecimalErc20		int64  `json:"decimalErc20"`
 }
 
+var config Configuration
+
 func main() {
-	config := ReadConfigJson()
-	InitSQLConnect()
+
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -64,44 +65,6 @@ func ReadConfigJson() Configuration{
 	return config
 }
 
-// listen USDT deposit
-func GetOnChianUSDTBalance(wg *sync.WaitGroup, config Configuration) {
-	defer func() {
-		if r := recover(); r != nil {
-            log.Println("defer recovered from panic:", r)
-        }
-		wg.Done()
-	}()
-
-	client, err := ethclient.Dial(config.InfuraHttpURL + config.InfuraAPIKey)
-	if err != nil {
-		panic(err)
-	}	
-	tokenAddress := common.HexToAddress(config.ContractAddressUSDT)// USDT
-	instance, err := token.NewToken(tokenAddress, client)
-	if err != nil {
-		panic(err)
-	}
-
-	address := common.HexToAddress("0x64b6eBE0A55244f09dFb1e46Fe59b74Ab94F8BE1")
-	for {
-		bal, err := instance.BalanceOf(&bind.CallOpts{}, address)
-		if err != nil {
-			panic(err)
-		}
-		
-		log.Println("USDT: ", DecimalTranfer(bal, big.NewInt(config.DecimalErc20)))
-		time.Sleep(time.Second * time.Duration(5)) // 5 sec
-	}
-}
-
-func DecimalTranfer(balance *big.Int, decimals *big.Int) string {
-    m := new(big.Float).SetUint64(balance.Uint64())
-    n := new(big.Float).SetUint64(decimals.Uint64())
-    z := m.Quo(m, n).SetPrec(128)
-	str := z.Text('f', 18)
-    return str
-}
 
 // Listen ether deposit wtih websocket
 func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
