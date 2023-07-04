@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/shopspring/decimal"
+	erc20 "example.com/m/contracts"
 )
 
 // Ethereum gas price in Gwei
@@ -176,8 +177,102 @@ func SendEther(result DepositRecord, multiSignWallet string) (Tx string, err err
 	return signedTx.Hash().Hex(), nil
 }
 
-func SendUSDToken(result DepositRecord, multiSignWallet string){
+func SendUSDToken(result DepositRecord, multiSignWallet string)(Trx string, err error){
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("sendEthTransfer defer recovered from panic:", r)
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 
+	// USDT合約地址
+	contractAddress := common.HexToAddress(config.ContractAddressUSDT)
+	coin := result.Token
+	if coin == "USDC" {
+		contractAddress = common.HexToAddress(config.ContractAddressUSDC)
+	}
+
+	// 收款人的地址
+	to := multiSignWallet
+	recipientAddress := common.HexToAddress(to)
+
+	// 發送者私鑰
+	user, ok := getUserDataFromDB(result.Wallet)
+	if !ok {
+		return "", fmt.Errorf("private key not found")
+	}
+
+	privateKeyStr := strings.TrimSpace(user.PrivateKey)
+	privateKeyBytes, err := hex.DecodeString(privateKeyStr)
+	if err != nil {
+		log.Println("Failed to decode private key")
+		return "", err
+	}
+	key, err := crypto.ToECDSA(privateKeyBytes)
+	if err != nil {
+		log.Println("Failed to convert private key")
+		return "", err
+	}
+
+	// 發送者地址
+	senderAddress := common.HexToAddress(user.Wallet)
+
+	// 獲取發送者的nonce
+	nonce, err := client.PendingNonceAt(context.Background(), senderAddress)
+	if err != nil {
+		return "", err
+	}
+
+	// 設置交易參數
+	gasPrice := big.NewInt(10000000000) // Gas 價格
+	gasLimit := uint64(210000)          // Gas 限制
+
+	// 建立 ERC-20 代幣合約實例
+	token, err := erc20.NewToken(contractAddress, client)
+	if err != nil {
+		return "", err
+	}
+
+	// 創建未簽名的交易
+	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(config.ChainID))
+	if err != nil {
+		log.Println("NewTransactorWithChainID error")
+		return "", err
+	}
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = gasLimit
+	auth.GasPrice = gasPrice
+
+	// 合約轉帳交易
+	amount, err := strToEtherWei(result.Amount.String(), result.Token)
+	if err != nil {
+		return "", err
+	}
+	
+	tx, err := token.Transfer(auth, recipientAddress, amount)
+	if err != nil {
+		return "", err
+	}
+
+	// 簽署交易
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(big.NewInt(config.ChainID)), key)
+	if err != nil {
+		log.Println("Failed to sign transaction")
+		return "", err
+	}
+
+	log.Println("signedTx", signedTx.Hash().Hex())
+	// 發送交易
+	err = client.SendTransaction(context.Background(), signedTx)
+	if err != nil && err.Error() != "already known" {
+		log.Println("SendTransaction error")
+		return "", err
+	}
+
+	fmt.Printf("transfer successful, tx hash: %s\n", signedTx.Hash().Hex())
+
+	return signedTx.Hash().Hex(), nil
 }
 
 func strToEtherWei(amountStr string, coin string) (*big.Int, error) {
