@@ -32,13 +32,12 @@ type Configuration struct {
 	InfuraWSS			string `json:"infuraWSS"`
 	InfuraAPIKey		string `json:"infuraAPIKey"`
 	DecimalErc20		int64  `json:"decimalErc20"`
+	ChainID 			int64  `json:"chainID"`
 }
 
 var config Configuration
 
 func main() {
-
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go SubscribingNewBlock(&wg, config)

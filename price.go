@@ -17,7 +17,7 @@ type EtherResult struct {
 	EtherUSD 		string 		`json:"ethusd"`
 }
 
-func getEtherPrice() string{
+func getEtherPrice() string {
 	apiURL := "https://api.etherscan.io/api?module=stats&action=ethprice&apikey=YourApiKeyToken"
 
 	response, err := http.Get(apiURL)

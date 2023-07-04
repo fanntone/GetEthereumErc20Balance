@@ -48,6 +48,12 @@ type Record struct {
 	UpdatedAt   	time.Time 			`gorm:"column:updated_at"`
 }
 
+type DepositRecord struct {
+	Wallet 	string 	
+	Token 	string
+	Amount 	decimal.Decimal
+}
+
 const (
 	UserName     string = "root"
 	Password     string = "123456"
@@ -217,18 +223,3 @@ func searchUserWalletFromDB(wallet string) bool {
 	return !errors.Is(result.Error, gorm.ErrRecordNotFound)
 }
 
-func searchAllUserWalletFromDB() ([]string, error) {
-	var wallets []string
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
-	err := DB.Debug().Model(&Record{}).
-	Select("DISTINCT wallet").
-	Where("created_at >= ? AND created_at <= ? AND action = ?",startOfDay, endOfDay, "Deposit").
-	Pluck("wallet", &wallets).Error
-	if err != nil {
-		return wallets, err
-	}
-
-	return wallets, nil
-}
