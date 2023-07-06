@@ -65,9 +65,10 @@ func searchAllUserWalletFromDB() ([]DepositRecord, error) {
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)
 	err := DB.Debug().Model(&Record{}).
-	Select("DISTINCT wallet").
+	Select("wallet, token, SUM(amount) AS amount").
 	Where("created_at >= ? AND created_at <= ? AND action = ?",startOfDay, endOfDay, "Deposit").
-	Pluck("wallet", &wallets).Error
+	Group("wallet, token").
+	Scan(&wallets).Error
 	if err != nil {
 		return wallets, err
 	}
@@ -75,35 +76,46 @@ func searchAllUserWalletFromDB() ([]DepositRecord, error) {
 	return wallets, nil
 }
 
-func CollectionDepositedToken(multiSignWallet string) {
+func CollectionDepositedToken(multiSignWallet string) (trxs []string, err error){
 	defer func() {
 		if r := recover(); r != nil {
             log.Println("defer recovered from panic:", r)
+			err = fmt.Errorf("%v", r)
         }
 	}()
 
 	// 查詢所有今日有入金的名單
 	results, err := searchAllUserWalletFromDB()
 	if err != nil {
-		panic(err)
+		return trxs, err
 	}
 
+	min := config.CollectionMinDepoistUSD
 	for _, result := range results {
-		if result.Token == "ETH" {
+		if result.Token != "ETH" {
+			if result.Amount.Cmp(decimal.NewFromInt(min)) >= 0 { // 大於20美金
+				trx, err := SendUSDToken(result, multiSignWallet)
+				if err != nil {
+					log.Println("send ether error:", result.Wallet)
+				}
+				trxs = append(trxs, trx)
+			}
+		} else {
 			price, err := decimal.NewFromString(getEtherPrice())
 			if err != nil {
 				continue
 			}
 			total := price.Mul(result.Amount)
-			if total.Cmp(decimal.NewFromInt(20)) >= 0 { // 大於20美金
-				SendEther(result, multiSignWallet)
-			}
-		} else {
-			if result.Amount.Cmp(decimal.NewFromInt(20)) >= 0 { // 大於20美金
-				SendUSDToken(result, multiSignWallet)
+			if total.Cmp(decimal.NewFromInt(min)) >= 0 { // 大於20美金
+				trx, err := SendEther(result, multiSignWallet)
+				if err != nil {
+					log.Println("send ether error:", result.Wallet)
+				}
+				trxs = append(trxs, trx)
 			}
 		}
 	}
+	return trxs, err
 }
 
 func SendEther(result DepositRecord, multiSignWallet string) (Tx string, err error){

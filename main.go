@@ -26,13 +26,14 @@ import (
 // var   decimalsUSDT  *big.Int = big.NewInt(1000000)
 
 type Configuration struct {
-	ContractAddressUSDT string `json:"contractAddressUSDT"`
-	ContractAddressUSDC string `json:"contractAddressUSDC"`
-	InfuraHttpURL 		string `json:"infuraHttpURL"`
-	InfuraWSS			string `json:"infuraWSS"`
-	InfuraAPIKey		string `json:"infuraAPIKey"`
-	DecimalErc20		int64  `json:"decimalErc20"`
-	ChainID 			int64  `json:"chainID"`
+	ContractAddressUSDT 	string 	`json:"contractAddressUSDT"`
+	ContractAddressUSDC 	string 	`json:"contractAddressUSDC"`
+	InfuraHttpURL 			string 	`json:"infuraHttpURL"`
+	InfuraWSS				string 	`json:"infuraWSS"`
+	InfuraAPIKey			string 	`json:"infuraAPIKey"`
+	DecimalErc20			int64  	`json:"decimalErc20"`
+	ChainID 				int64  	`json:"chainID"`
+	CollectionMinDepoistUSD int64 	`json:"collectionMinDepoistUSD"`
 }
 
 var config Configuration

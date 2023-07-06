@@ -14,3 +14,7 @@ func TestSearchAllUserWalletFromDB(t *testing.T) {
 	t.Log("Wallets:", wallets)
 
 }
+
+func TestGetCollectionDepositedToken(t *testing.T) {
+	
+}
