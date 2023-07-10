@@ -14,8 +14,6 @@ How to run?
 2. docker build -t usdt . --no-cache
 3. docker run --name usdt -d -p 1234:1234 usdt
 
-think you.
-
 # Config.json: Mainnet 
 {
     "contractAddressUSDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
@@ -27,4 +25,7 @@ think you.
     "chainID": 1,
     "collectionMinDepoistUSD": 20
 }
+1. Fixed config.json for different condition.
 
+
+think you.
