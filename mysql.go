@@ -49,9 +49,9 @@ type Record struct {
 }
 
 type DepositRecord struct {
-	Wallet 	string 	`gorm:"column:wallet"`
-	Token 	string	`gorm:"column:token"`
-	Amount 	decimal.Decimal	`gorm:"column:amount"`
+	Wallet 			string 				`gorm:"column:wallet"`
+	Token 			string				`gorm:"column:token"`
+	Amount 			decimal.Decimal		`gorm:"column:amount"`
 }
 
 const (
