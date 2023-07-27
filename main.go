@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	// "fmt"
 	"log"
 	"math/big"
 	"os"
@@ -164,9 +164,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 				log.Println("No ether deposit found")
 				continue
 			}
-			fmt.Println("***************Begin****************************")
-			fmt.Println("block hash: ", block.Hash().Hex())
-			fmt.Println("block number: ", block.Number().Uint64())   
+			log.Println("***************Begin****************************")
+			log.Println("block hash: ", block.Hash().Hex())
+			log.Println("block number: ", block.Number().Uint64())   
 			for _, trx := range block.Transactions() {
 				trxJSON, err := json.Marshal(trx.To())
 				if err != nil {
@@ -180,9 +180,9 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 					amount := trx.Value()
 					value := decimal.NewFromBigInt(amount, -int32(precision))
 
-					fmt.Println("Found deposit: Ether")
-					fmt.Println("send value: ", value)
-					fmt.Println("trx.value()", trx.Value())				
+					log.Println("Found deposit: Ether")
+					log.Println("send value: ", value)
+					log.Println("trx.value()", trx.Value())				
 					record := Record {
 						Wallet: to,
 						USDT: decimal.NewFromInt(0),
@@ -196,7 +196,7 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 
 				}
 			}
-			fmt.Println("***************END******************************")
+			log.Println("***************END******************************")
 
 		// USDT
 		case err := <-subLog.Err():
@@ -215,10 +215,10 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			amount := new(big.Int).SetBytes(vLog.Data)
 			value := decimal.NewFromBigInt(amount, -int32(precision))
 
-			fmt.Println("Found deposit: USDT")
-			fmt.Println("from: ", from)
-			fmt.Println("to:   ", to)
-			fmt.Println("value: ", value)				
+			log.Println("Found deposit: USDT")
+			log.Println("from: ", from)
+			log.Println("to:   ", to)
+			log.Println("value: ", value)				
 
 			record := Record {
 				Wallet: to,
@@ -244,10 +244,10 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			precision := config.DecimalErc20
 			amount := new(big.Int).SetBytes(usdcLog.Data)
 			value := decimal.NewFromBigInt(amount, -int32(precision))
-			fmt.Println("Found deposit: USDC")
-			fmt.Println("from: ", from)
-			fmt.Println("to:   ", to)
-			fmt.Println("value: ", value)
+			log.Println("Found deposit: USDC")
+			log.Println("from: ", from)
+			log.Println("to:   ", to)
+			log.Println("value: ", value)
 
 			record := Record {
 				Wallet: to,
