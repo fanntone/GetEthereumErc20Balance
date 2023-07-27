@@ -208,8 +208,6 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 				continue
 			}
 
-
-
             // 輸出轉移的代幣數量
 			precision := config.DecimalErc20
 			amount := new(big.Int).SetBytes(vLog.Data)
@@ -261,10 +259,4 @@ func SubscribingNewBlock(wg *sync.WaitGroup, config Configuration){
 			appendRecord(record)
 		}
 	}
-}
-
-func dataToBigInt(data []byte) *big.Int {
-    b := new(big.Int)
-    b.SetBytes(data)
-    return b
 }
