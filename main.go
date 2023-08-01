@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	// "fmt"
 	"log"
 	"math/big"
 	"os"
@@ -12,9 +11,7 @@ import (
 	"sync"
 	"time"
 
-	// token "example.com/m/contracts"
 	"github.com/ethereum/go-ethereum"
-	// "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,18 +19,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// var   decimalsEther *big.Int = big.NewInt(1000000000000000000)
-// var   decimalsUSDT  *big.Int = big.NewInt(1000000)
 
 type Configuration struct {
-	ContractAddressUSDT 	string 	`json:"contractAddressUSDT"`
-	ContractAddressUSDC 	string 	`json:"contractAddressUSDC"`
-	InfuraHttpURL 			string 	`json:"infuraHttpURL"`
-	InfuraWSS				string 	`json:"infuraWSS"`
-	InfuraAPIKey			string 	`json:"infuraAPIKey"`
-	DecimalErc20			int64  	`json:"decimalErc20"`
-	ChainID 				int64  	`json:"chainID"`
-	CollectionMinDepoistUSD int64 	`json:"collectionMinDepoistUSD"`
+	ContractAddressUSDT 		string		`json:"contractAddressUSDT"`
+	ContractAddressUSDC 		string 		`json:"contractAddressUSDC"`
+	InfuraHttpURL 				string 		`json:"infuraHttpURL"`
+	InfuraWSS					string 		`json:"infuraWSS"`
+	InfuraAPIKey				string 		`json:"infuraAPIKey"`
+	DecimalErc20				int64  		`json:"decimalErc20"`
+	ChainID 					int64  		`json:"chainID"`
+	CollectionMinDepoistUSD 	int64 		`json:"collectionMinDepoistUSD"`
 }
 
 var config Configuration

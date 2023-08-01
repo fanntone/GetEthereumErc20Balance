@@ -27,7 +27,7 @@ const gasLimit = 21000
 
 var client *ethclient.Client
 
-func searchAllUserWalletFromDB() ([]DepositRecord, error) {
+func SearchAllUserWalletFromDB() ([]DepositRecord, error) {
 	var wallets []DepositRecord
 	now := time.Now()
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -53,7 +53,7 @@ func CollectionDepositedToken(multiSignWallet string) (trxs []string, err error)
 	}()
 
 	// 查詢所有今日有入金的名單
-	results, err := searchAllUserWalletFromDB()
+	results, err := SearchAllUserWalletFromDB()
 	if err != nil {
 		return trxs, err
 	}
@@ -69,7 +69,7 @@ func CollectionDepositedToken(multiSignWallet string) (trxs []string, err error)
 				trxs = append(trxs, trx)
 			}
 		} else {
-			price, err := decimal.NewFromString(getEtherPrice())
+			price, err := decimal.NewFromString(GetEtherPrice())
 			if err != nil {
 				continue
 			}
@@ -134,7 +134,7 @@ func SendEther(result DepositRecord, multiSignWallet string) (Tx string, err err
 	// Create the unsigned transaction
 	var data []byte
 	to := common.HexToAddress(multiSignWallet)
-	amount, err := strToEtherWei(result.Amount.String(), result.Token) 
+	amount, err := StrToEtherWei(result.Amount.String(), result.Token) 
 	if err != nil {
 		return "", err
 	}
@@ -225,7 +225,7 @@ func SendUSDToken(result DepositRecord, multiSignWallet string)(Trx string, err 
 	auth.GasPrice = gasPrice
 
 	// 合約轉帳交易
-	amount, err := strToEtherWei(result.Amount.String(), result.Token)
+	amount, err := StrToEtherWei(result.Amount.String(), result.Token)
 	if err != nil {
 		return "", err
 	}
@@ -255,7 +255,7 @@ func SendUSDToken(result DepositRecord, multiSignWallet string)(Trx string, err 
 	return signedTx.Hash().Hex(), nil
 }
 
-func strToEtherWei(amountStr string, coin string) (*big.Int, error) {
+func StrToEtherWei(amountStr string, coin string) (*big.Int, error) {
 	amountFloat, ok := new(big.Float).SetString(amountStr)
 	if !ok {
 		return nil, fmt.Errorf("invalid amount")

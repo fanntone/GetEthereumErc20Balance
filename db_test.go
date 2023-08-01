@@ -2,11 +2,10 @@ package main
 
 import (
 	"testing"
-	// "github.com/stretchr/testify/assert"
 )
 
 func TestSearchAllUserWalletFromDB(t *testing.T) {
-	wallets, err := searchAllUserWalletFromDB()
+	wallets, err := SearchAllUserWalletFromDB()
 
 	// assert.NoError(t, err)
 	// assert.NotEmpty(t, wallets)
